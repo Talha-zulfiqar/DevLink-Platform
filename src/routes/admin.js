@@ -207,37 +207,65 @@ router.get('/debug/users', adminAuth, async (req, res) => {
   }
 });
  
-// POST /api/admin/announce - send announcement (development: console-only email)
+// POST /api/admin/announce - send announcement to all users (create notifications)
 try {
   const emailService = require('../utils/emailService')
+  const { notifyUser } = require('../socket')
+  
   router.post('/announce', adminAuth, async (req, res) => {
     try {
       const { subject, message, sendTo } = req.body || {}
       if (!subject || !message) return res.status(400).json({ success: false, message: 'subject and message required' })
 
       const User = require('../models/User')
-      // For development, default to log-only. If sendTo === 'all', iterate users and call console email
-      const users = await User.find({}).select('email firstName').lean()
-      users.forEach(u => {
-        try {
-          // console-only send
-          if (emailService && typeof emailService.sendPasswordResetEmail === 'function') {
-            // reuse sendPasswordResetEmail to log a message (it expects token param) - instead just console.log here
-            console.log('ANNOUNCEMENT to', u.email, 'subject:', subject)
-          } else {
-            console.log('ANNOUNCEMENT to', u.email, 'subject:', subject)
-          }
-        } catch (e) { /* ignore per-user errors */ }
-      })
+      // Get all users
+      const users = await User.find({}).select('_id email firstName').lean()
+      
+      if (!users || users.length === 0) {
+        return res.json({ success: true, message: 'No users to notify', recipients: 0 })
+      }
 
-      return res.json({ success: true, message: 'Announcement processed (console-only in dev)', recipients: users.length })
+      let notificationCount = 0
+      let errorCount = 0
+
+      // Create notification for each user using notifyUser (which calls NotificationService.create + emits socket event)
+      for (const user of users) {
+        try {
+          await notifyUser(user._id, {
+            type: 'system',
+            title: subject,
+            message: message,
+            icon: '📢',
+            actionUrl: '/app/dashboard',
+            metadata: { announcedBy: req.user?._id || 'admin', announcedAt: new Date() }
+          })
+
+          notificationCount++
+          
+          // Log email announcement (for future email implementation)
+          try {
+            console.log('📢 ANNOUNCEMENT to', user.email, '| subject:', subject)
+          } catch (e) {}
+        } catch (err) {
+          errorCount++
+          console.error('Error creating notification for user', user._id, err)
+        }
+      }
+
+      return res.json({ 
+        success: true, 
+        message: `Announcement sent to ${notificationCount} users${errorCount > 0 ? ` (${errorCount} errors)` : ''}`,
+        recipients: notificationCount,
+        errors: errorCount
+      })
     } catch (err) {
       console.error('/api/admin/announce error', err)
-      return res.status(500).json({ success: false, message: 'Server error' })
+      return res.status(500).json({ success: false, message: 'Server error', error: err.message })
     }
   })
 } catch (e) {
-  // ignore if emailService not available
+  console.error('Failed to register /announce endpoint:', e)
+  // ignore if dependencies not available
 }
 
 const MentorApplication = require('../models/MentorApplication');
@@ -249,6 +277,383 @@ router.get('/debug/applications', adminAuth, async (req, res) => {
   } catch (error) {
     console.error('Debug applications error:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// ===== ADMIN RATING MANAGEMENT =====
+
+// GET /api/admin/ratings - Get all ratings with filters
+router.get('/ratings', adminAuth, async (req, res) => {
+  try {
+    const { mentorId, page = 1, limit = 20, sortBy = 'createdAt', order = 'desc' } = req.query;
+    const skip = (parseInt(page) - 1) * parseInt(limit);
+    
+    const filter = mentorId ? { mentor: mentorId } : {};
+    const sort = { [sortBy]: order === 'asc' ? 1 : -1 };
+
+    const Rating = require('../models/Rating');
+    
+    const allRatings = await Rating.find(filter)
+      .populate('reviewer', 'firstName lastName email avatar')
+      .populate('mentor', 'firstName lastName email role rating')
+      .populate('booking', 'startTime endTime')
+      .sort(sort)
+      .skip(skip)
+      .limit(parseInt(limit))
+      .lean();
+
+    const total = await Rating.countDocuments(filter);
+
+    res.json({
+      success: true,
+      data: {
+        ratings: allRatings,
+        pagination: {
+          page: parseInt(page),
+          limit: parseInt(limit),
+          total,
+          pages: Math.ceil(total / parseInt(limit))
+        }
+      }
+    });
+  } catch (error) {
+    console.error('GET /api/admin/ratings error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// GET /api/admin/ratings/:ratingId - Get single rating details
+router.get('/ratings/:ratingId', adminAuth, async (req, res) => {
+  try {
+    const { ratingId } = req.params;
+    const Rating = require('../models/Rating');
+
+    const rating = await Rating.findById(ratingId)
+      .populate('reviewer', 'firstName lastName email avatar')
+      .populate('mentor', 'firstName lastName email role rating')
+      .populate('booking');
+
+    if (!rating) {
+      return res.status(404).json({ success: false, message: 'Rating not found' });
+    }
+
+    res.json({ success: true, data: { rating } });
+  } catch (error) {
+    console.error('GET /api/admin/ratings/:ratingId error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// PATCH /api/admin/ratings/:ratingId - Update rating (admin only)
+router.patch('/ratings/:ratingId', adminAuth, async (req, res) => {
+  try {
+    const { ratingId } = req.params;
+    const { rating, comment, categories, reviewNotes } = req.body;
+    const Rating = require('../models/Rating');
+
+    console.log('Update rating request:', { ratingId, rating, comment, categories, reviewNotes });
+
+    // Build update object with only the fields that are provided
+    const updateObj = {};
+
+    if (rating !== undefined && rating >= 1 && rating <= 5) {
+      updateObj.rating = rating;
+    }
+    if (comment !== undefined) {
+      updateObj.comment = comment;
+    }
+    if (categories !== undefined) {
+      updateObj.categories = categories;
+    }
+    if (reviewNotes !== undefined) {
+      updateObj.adminReviewNotes = reviewNotes;
+      updateObj.adminReviewedAt = new Date();
+    }
+
+    // Mark as modified by admin
+    if (Object.keys(updateObj).length > 0) {
+      updateObj.isModifiedByAdmin = true;
+    }
+
+    console.log('Update object:', updateObj);
+
+    // Use findByIdAndUpdate without running validators to avoid clearing required fields
+    const updatedRating = await Rating.findByIdAndUpdate(
+      ratingId,
+      updateObj,
+      { new: true, runValidators: false }
+    ).populate('mentor reviewer booking');
+
+    if (!updatedRating) {
+      return res.status(404).json({ success: false, message: 'Rating not found' });
+    }
+
+    console.log('Updated rating successfully');
+
+    // Recalculate mentor's average rating
+    const mentorId = updatedRating.mentor?._id;
+    console.log('Recalculating mentor rating for mentorId:', mentorId);
+    
+    if (mentorId) {
+      const allRatings = await Rating.find({ mentor: mentorId });
+      console.log(`Found ${allRatings.length} ratings for this mentor`);
+      
+      const avgRating = allRatings.length > 0
+        ? allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length
+        : 0;
+
+      const mentor = await User.findById(mentorId);
+      if (mentor) {
+        mentor.rating = Number(avgRating.toFixed(1));
+        await mentor.save();
+        console.log('Updated mentor rating to:', mentor.rating);
+      }
+    }
+
+    return res.json({
+      success: true,
+      message: 'Rating updated successfully',
+      data: { rating: updatedRating }
+    });
+  } catch (error) {
+    console.error('PATCH /api/admin/ratings/:ratingId error:', error.message);
+    console.error('Full error:', error);
+    return res.status(500).json({ 
+      success: false, 
+      message: error.message || 'Server error' 
+    });
+  }
+});
+
+// DELETE /api/admin/ratings/:ratingId - Delete rating (admin only)
+router.delete('/ratings/:ratingId', adminAuth, async (req, res) => {
+  try {
+    const { ratingId } = req.params;
+    const Rating = require('../models/Rating');
+
+    const rating = await Rating.findById(ratingId);
+    if (!rating) {
+      return res.status(404).json({ success: false, message: 'Rating not found' });
+    }
+
+    const mentorId = rating.mentor;
+    
+    await Rating.deleteOne({ _id: ratingId });
+
+    // Recalculate mentor's average rating
+    const allRatings = await Rating.find({ mentor: mentorId });
+    const avgRating = allRatings.length > 0
+      ? allRatings.reduce((sum, r) => sum + r.rating, 0) / allRatings.length
+      : 0;
+
+    const mentor = await User.findById(mentorId);
+    if (mentor) {
+      mentor.rating = Number(avgRating.toFixed(1));
+      await mentor.save();
+    }
+
+    res.json({
+      success: true,
+      message: 'Rating deleted successfully'
+    });
+  } catch (error) {
+    console.error('DELETE /api/admin/ratings/:ratingId error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// GET /api/admin/ratings/mentor/:mentorId/summary - Get mentor rating summary
+router.get('/ratings/mentor/:mentorId/summary', adminAuth, async (req, res) => {
+  try {
+    const { mentorId } = req.params;
+    const Rating = require('../models/Rating');
+
+    const mentor = await User.findById(mentorId).select('firstName lastName email rating role');
+    if (!mentor) {
+      return res.status(404).json({ success: false, message: 'Mentor not found' });
+    }
+
+    const ratings = await Rating.find({ mentor: mentorId }).lean();
+    
+    const stats = {
+      totalRatings: ratings.length,
+      averageRating: ratings.length > 0 ? (ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length).toFixed(1) : 0,
+      ratingDistribution: {
+        '5': ratings.filter(r => r.rating === 5).length,
+        '4': ratings.filter(r => r.rating === 4).length,
+        '3': ratings.filter(r => r.rating === 3).length,
+        '2': ratings.filter(r => r.rating === 2).length,
+        '1': ratings.filter(r => r.rating === 1).length,
+      },
+      categoryAverages: {
+        communication: 0,
+        expertise: 0,
+        punctuality: 0,
+        helpfulness: 0,
+      }
+    };
+
+    // Calculate category averages
+    ['communication', 'expertise', 'punctuality', 'helpfulness'].forEach(category => {
+      const categoryRatings = ratings.filter(r => r.categories && r.categories[category]);
+      if (categoryRatings.length > 0) {
+        stats.categoryAverages[category] = (categoryRatings.reduce((sum, r) => sum + (r.categories[category] || 0), 0) / categoryRatings.length).toFixed(1);
+      }
+    });
+
+    res.json({
+      success: true,
+      data: {
+        mentor,
+        stats,
+        recentRatings: ratings.slice(0, 5)
+      }
+    });
+  } catch (error) {
+    console.error('GET /api/admin/ratings/mentor/:mentorId/summary error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// ============= WITHDRAWAL MANAGEMENT =============
+
+// GET /api/admin/withdrawals - Get all pending/processing withdrawals
+router.get('/withdrawals', adminAuth, async (req, res) => {
+  try {
+    const Withdrawal = require('../models/Withdrawal');
+    const { status } = req.query; // Optional filter by status
+    
+    const filter = {};
+    if (status) {
+      filter.status = status;
+    }
+    
+    const withdrawals = await Withdrawal.find(filter)
+      .populate('mentor', 'firstName lastName email')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({
+      success: true,
+      data: {
+        withdrawals,
+        total: withdrawals.length
+      }
+    });
+  } catch (error) {
+    console.error('GET /api/admin/withdrawals error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// PATCH /api/admin/withdrawals/:withdrawalId/approve - Approve pending withdrawal
+router.patch('/withdrawals/:withdrawalId/approve', adminAuth, async (req, res) => {
+  try {
+    const Withdrawal = require('../models/Withdrawal');
+    const { withdrawalId } = req.params;
+    const { notes } = req.body || {};
+
+    const withdrawal = await Withdrawal.findById(withdrawalId);
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Cannot approve withdrawal with status: ${withdrawal.status}` 
+      });
+    }
+
+    withdrawal.status = 'processing';
+    withdrawal.processedAt = new Date();
+    if (notes) {
+      withdrawal.notes = notes;
+    }
+
+    await withdrawal.save();
+
+    res.json({
+      success: true,
+      message: 'Withdrawal approved',
+      data: { withdrawal }
+    });
+  } catch (error) {
+    console.error('PATCH /api/admin/withdrawals/:withdrawalId/approve error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// PATCH /api/admin/withdrawals/:withdrawalId/reject - Reject pending withdrawal
+router.patch('/withdrawals/:withdrawalId/reject', adminAuth, async (req, res) => {
+  try {
+    const Withdrawal = require('../models/Withdrawal');
+    const { withdrawalId } = req.params;
+    const { failureReason } = req.body || {};
+
+    const withdrawal = await Withdrawal.findById(withdrawalId);
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
+    }
+
+    if (withdrawal.status !== 'pending') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Cannot reject withdrawal with status: ${withdrawal.status}` 
+      });
+    }
+
+    withdrawal.status = 'rejected';
+    withdrawal.failureReason = failureReason || 'Rejected by admin';
+
+    await withdrawal.save();
+
+    res.json({
+      success: true,
+      message: 'Withdrawal rejected',
+      data: { withdrawal }
+    });
+  } catch (error) {
+    console.error('PATCH /api/admin/withdrawals/:withdrawalId/reject error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
+  }
+});
+
+// PATCH /api/admin/withdrawals/:withdrawalId/complete - Mark withdrawal as completed
+router.patch('/withdrawals/:withdrawalId/complete', adminAuth, async (req, res) => {
+  try {
+    const Withdrawal = require('../models/Withdrawal');
+    const { withdrawalId } = req.params;
+    const { transactionId } = req.body || {};
+
+    const withdrawal = await Withdrawal.findById(withdrawalId);
+    if (!withdrawal) {
+      return res.status(404).json({ success: false, message: 'Withdrawal not found' });
+    }
+
+    if (withdrawal.status !== 'processing') {
+      return res.status(400).json({ 
+        success: false, 
+        message: `Cannot complete withdrawal with status: ${withdrawal.status}` 
+      });
+    }
+
+    withdrawal.status = 'completed';
+    withdrawal.completedAt = new Date();
+    if (transactionId) {
+      withdrawal.transactionId = transactionId;
+    }
+
+    await withdrawal.save();
+
+    res.json({
+      success: true,
+      message: 'Withdrawal completed',
+      data: { withdrawal }
+    });
+  } catch (error) {
+    console.error('PATCH /api/admin/withdrawals/:withdrawalId/complete error:', error);
+    res.status(500).json({ success: false, message: 'Server error' });
   }
 });
 

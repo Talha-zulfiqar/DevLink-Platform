@@ -2,8 +2,9 @@ import React, { useEffect, useState, useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
 import AdminLayout from './AdminLayout'
 import adminApi from '../../services/adminApi'
+import { useToast } from '../../components/UX/ToastProvider'
 import { LineChart, Line, CartesianGrid, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts'
-import { Users, DollarSign, Activity, TrendingUp, CheckCircle, Send, FileText } from 'lucide-react'
+import { Users, DollarSign, Activity, TrendingUp, CheckCircle, Send, FileText, CreditCard } from 'lucide-react'
 
 function SkeletonCard({ className = '' }: { className?: string }) {
   return (
@@ -25,6 +26,7 @@ export default function DashboardHome() {
   const [actionLoading, setActionLoading] = useState(false)
 
   const navigate = useNavigate()
+  const toast = useToast()
 
   const load = async () => {
     setLoading(true)
@@ -240,6 +242,10 @@ export default function DashboardHome() {
             <div className="space-y-3">
               <button onClick={() => navigate('/admin/approvals')} className="w-full flex items-center gap-3 px-3 py-2 bg-green-600 text-white rounded hover:opacity-95"><CheckCircle /> Approve Mentor <span className="ml-auto bg-white/20 px-2 py-0.5 rounded">{loading ? '—' : data?.summary?.pendingApplications ?? 0}</span></button>
 
+              <button onClick={() => navigate('/admin/ratings')} className="w-full flex items-center gap-3 px-3 py-2 bg-purple-600 text-white rounded hover:opacity-95"><TrendingUp /> Manage Ratings</button>
+
+              <button onClick={() => navigate('/admin/withdrawals')} className="w-full flex items-center gap-3 px-3 py-2 bg-indigo-600 text-white rounded hover:opacity-95"><CreditCard /> Manage Withdrawals</button>
+
               <button onClick={() => setAnnounceOpen(true)} className="w-full flex items-center gap-3 px-3 py-2 bg-blue-600 text-white rounded hover:opacity-95"><Send /> Send Announcement</button>
 
               <button onClick={() => {
@@ -384,11 +390,18 @@ export default function DashboardHome() {
                     try {
                       setActionLoading(true)
                       const res = await adminApi.announce(announceSubject, announceMessage)
-                      alert(res && res.success ? `Announcement queued to ${res.recipients} users` : 'Announcement failed')
-                      setAnnounceOpen(false)
-                      setAnnounceMessage('')
-                      setAnnounceSubject('')
-                    } catch (e:any) { console.error(e); alert('Announcement failed: ' + (e?.message||e)) }
+                      if (res && res.success) {
+                        toast.show(`Announcement sent to ${res.recipients} users!`, 'success')
+                        setAnnounceOpen(false)
+                        setAnnounceMessage('')
+                        setAnnounceSubject('')
+                      } else {
+                        toast.show('Announcement failed', 'error')
+                      }
+                    } catch (e:any) { 
+                      console.error(e)
+                      toast.show(`Announcement failed: ${e?.message || 'Unknown error'}`, 'error')
+                    }
                     finally { setActionLoading(false) }
                   }} className="px-4 py-2 bg-blue-600 text-white rounded">Send</button>
                 </div>

@@ -245,6 +245,26 @@ export default function OrganizationHub() {
     } catch (e) { console.error('Error marking complete', e) }
   }
 
+  async function handleRemoveTask(taskId: string) {
+    try {
+      const res = await fetch(`${API_BASE}/organization/tasks/${taskId}`, {
+        method: 'DELETE',
+        headers: getHeaders()
+      })
+      if (res.ok) {
+        setTasks(prev => prev.filter(t => String(t._id) !== String(taskId)))
+        setIsTaskModalOpen(false)
+        setSelectedTask(null)
+        // notify other UI parts about the removal
+        try {
+          window.dispatchEvent(new CustomEvent('org-task-removed', { detail: { taskId } }))
+        } catch (e) {}
+      } else {
+        console.error('Failed to remove task', await res.text().catch(() => ''))
+      }
+    } catch (e) { console.error('Error removing task', e) }
+  }
+
   return (
     <div ref={ref} className="relative">
       <button
@@ -379,8 +399,8 @@ export default function OrganizationHub() {
             </div>
           </div>
         </div>
-  )}
-  <TaskDetailModal task={selectedTask} isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} onMarkComplete={handleMarkComplete} onStatusChange={handleStatusUpdate} onProgressChange={handleProgressUpdate} />
+      )}
+      <TaskDetailModal task={selectedTask} isOpen={isTaskModalOpen} onClose={() => setIsTaskModalOpen(false)} onMarkComplete={handleMarkComplete} onStatusChange={handleStatusUpdate} onProgressChange={handleProgressUpdate} onRemoveTask={handleRemoveTask} />
     </div>
   )
 }

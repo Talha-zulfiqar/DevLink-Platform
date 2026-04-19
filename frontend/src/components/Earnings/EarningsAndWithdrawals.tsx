@@ -115,6 +115,11 @@ export default function EarningsAndWithdrawals({ API_BASE }: { API_BASE: string 
     }
   }
 
+  // Calculate pending withdrawal amount
+  const pendingAmount = withdrawals
+    .filter(w => w.status === 'pending')
+    .reduce((sum, w) => sum + w.amount, 0)
+
   if (loading) {
     return <div className="text-center py-8 text-gray-500">Loading earnings...</div>
   }
@@ -139,6 +144,11 @@ export default function EarningsAndWithdrawals({ API_BASE }: { API_BASE: string 
               <div>
                 <p className="text-sm font-medium text-blue-700 dark:text-blue-400 mb-1">Available Balance</p>
                 <p className="text-3xl font-bold text-blue-900 dark:text-blue-100">${earnings.availableBalance.toFixed(2)}</p>
+                {pendingAmount > 0 && (
+                  <p className="text-xs text-blue-600 dark:text-blue-300 mt-2">
+                    ${(pendingAmount / 100).toFixed(2)} pending approval
+                  </p>
+                )}
               </div>
               <Wallet className="w-12 h-12 text-blue-400 opacity-20" />
             </div>
@@ -152,6 +162,19 @@ export default function EarningsAndWithdrawals({ API_BASE }: { API_BASE: string 
               </div>
               <ArrowUp className="w-12 h-12 text-purple-400 opacity-20" />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Pending Withdrawals Alert */}
+      {pendingAmount > 0 && (
+        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-xl p-4 flex items-start gap-3">
+          <Clock className="w-5 h-5 text-yellow-600 dark:text-yellow-400 flex-shrink-0 mt-0.5" />
+          <div>
+            <h4 className="font-semibold text-yellow-900 dark:text-yellow-100">Pending Withdrawal</h4>
+            <p className="text-sm text-yellow-800 dark:text-yellow-200 mt-1">
+              You have ${(pendingAmount / 100).toFixed(2)} in pending withdrawal requests awaiting admin approval. This amount is reserved and not available for new requests.
+            </p>
           </div>
         </div>
       )}

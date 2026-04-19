@@ -6,10 +6,11 @@ import { useNavigate } from 'react-router-dom'
 import EmptyState from '../components/UX/EmptyState'
 import Breadcrumbs from '../components/UX/Breadcrumbs'
 import BackToTop from '../components/UX/BackToTop'
-import { CalendarIcon, MessageSquare, Users, TrendingUp } from 'lucide-react'
+import { CalendarIcon, MessageSquare, Users, TrendingUp, Star } from 'lucide-react'
 import { useToast } from '../components/UX/ToastProvider'
 import ConfirmDialog from '../components/UX/ConfirmDialog'
 import VideoCallButton from '../components/Video/VideoCallButton'
+import SubmitRating from '../components/Ratings/SubmitRating'
 // Charts removed in revert: visual-only changes undone
 
 type Session = {
@@ -38,6 +39,11 @@ export default function Sessions() {
   const navigate = useNavigate()
   const toast = useToast()
   const { user: currentUser } = useAuth() || {}
+
+  // Rating modal state
+  const [ratingModalOpen, setRatingModalOpen] = useState(false)
+  const [selectedBookingForRating, setSelectedBookingForRating] = useState<Session | null>(null)
+  const [ratedBookings, setRatedBookings] = useState<Set<string>>(new Set())
 
   // manage sessions in state so we can update status on cancel
   const [upcomingSessions, setUpcomingSessions] = useState<Session[]>([])
@@ -146,6 +152,9 @@ export default function Sessions() {
   setPendingSessions(pending.map((b: any) => ({ id: b.id, mentor: b.mentor, mentorId: b.mentorId ?? null, studentId: b.studentId ?? null, otherName: b.otherName || '', date: b.date, time: b.time, duration: b.duration, meetingType: b.meetingType, status: b.status, paymentPending: true, description: b.description, startMs: b.startMs, endMs: b.endMs })))
     setStats({ upcoming: upcoming.length, completed: past.length, cancelled: cancelled.length })
       setLoading(false)
+
+      // Fetch ratings after bookings are loaded to check which ones are already rated
+      await fetchUserRatings(API_BASE, token)
     } catch (error) {
       console.error('❌ FETCH SESSIONS ERROR:', error)
       setUpcomingSessions([])
@@ -153,6 +162,29 @@ export default function Sessions() {
       setCancelledSessions([])
       setStats({ upcoming: 0, completed: 0, cancelled: 0 })
       setLoading(false)
+    }
+  }, [])
+
+  // Fetch user's own ratings to see which bookings they've already rated
+  const fetchUserRatings = useCallback(async (API_BASE: string, token?: string) => {
+    try {
+      const headers: Record<string,string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
+      const response = await fetch(`${API_BASE}/ratings/my`, { headers })
+      if (!response.ok) {
+        console.warn('Failed to fetch user ratings, status', response.status)
+        return
+      }
+      const data = await response.json()
+      const ratings = (data && data.ratings && Array.isArray(data.ratings)) ? data.ratings : []
+      
+      // Create a set of booking IDs that user has already rated
+      const ratedIds = new Set(ratings.map((r: any) => String(r.booking)))
+      setRatedBookings(ratedIds)
+      console.log('✅ User ratings loaded:', ratedIds)
+    } catch (error) {
+      console.error('Failed to fetch user ratings:', error)
     }
   }, [])
 
@@ -174,10 +206,10 @@ export default function Sessions() {
         console.log('socket booking-updated received', payload)
         fetchSessions()
       }
-  s && s.on && s.on('booking-created', onCreated)
-  try { /* listeners ready */ } catch (e) {}
-  s && s.on && s.on('booking-updated', onUpdated)
-  try { /* listeners ready */ } catch (e) {}
+      s && s.on && s.on('booking-created', onCreated)
+      try { /* listeners ready */ } catch (e) {}
+      s && s.on && s.on('booking-updated', onUpdated)
+      try { /* listeners ready */ } catch (e) {}
 
       return () => {
         try {
@@ -590,15 +622,38 @@ export default function Sessions() {
                 <EmptyState title="No past meetings" subtitle="Once you complete meetings they'll appear here." Icon={CalendarIcon} />
               ) : (
                 <div className="space-y-3">
-                  {past.map((s) => (
-                    <div key={s.id} className="p-3 rounded-lg flex items-center justify-between bg-gray-50 dark:bg-gray-700">
-                      <div>
-                        <div className="font-medium text-gray-900 dark:text-white">{s.mentor?.name}{s.otherName ? ` • ${s.otherName}` : ''}</div>
-                        <div className="text-sm text-gray-600 dark:text-gray-300">{s.date} • {s.time} • {s.duration} min</div>
+                  {past.map((s) => {
+                    const hasRated = ratedBookings.has(s.id)
+                    return (
+                      <div key={s.id} className="p-3 rounded-lg flex items-center justify-between bg-gray-50 dark:bg-gray-700">
+                        <div>
+                          <div className="font-medium text-gray-900 dark:text-white">{s.mentor?.name}{s.otherName ? ` • ${s.otherName}` : ''}</div>
+                          <div className="text-sm text-gray-600 dark:text-gray-300">{s.date} • {s.time} • {s.duration} min</div>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          {hasRated ? (
+                            <div className="flex items-center gap-1 px-3 py-1 rounded-md bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-300 text-sm">
+                              <Star size={16} className="fill-current" />
+                              <span>Rated</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                setSelectedBookingForRating(s)
+                                setRatingModalOpen(true)
+                              }}
+                              className="flex items-center gap-2 px-3 py-1 rounded-md bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 text-sm hover:bg-indigo-200 dark:hover:bg-indigo-800 transition-colors"
+                              title="Rate this mentor"
+                            >
+                              <Star size={16} />
+                              <span>Rate mentor</span>
+                            </button>
+                          )}
+                          <div className="text-sm text-gray-500 dark:text-gray-300">Completed</div>
+                        </div>
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-300">Completed</div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               )}
             </div>
@@ -626,6 +681,48 @@ export default function Sessions() {
 
   <SessionBooking open={bookingOpen} onClose={() => setBookingOpen(false)} onConfirm={handleConfirm} mentor={null} />
   <ConfirmDialog open={confirmOpen} title="Cancel meeting" message={`Cancel meeting with ${toCancel?.mentor?.name ?? ''}? This cannot be undone.`} onCancel={() => setConfirmOpen(false)} onConfirm={doCancel} />
+  
+  {/* Rating Modal */}
+  {ratingModalOpen && selectedBookingForRating && (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="sticky top-0 flex items-center justify-between p-6 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Rate {selectedBookingForRating.mentor?.name}</h2>
+          <button
+            onClick={() => {
+              setRatingModalOpen(false)
+              setSelectedBookingForRating(null)
+            }}
+            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="p-6">
+          <SubmitRating
+            mentorId={selectedBookingForRating.mentorId || ''}
+            bookingId={selectedBookingForRating.id}
+            API_BASE={(import.meta.env.VITE_API_BASE as string) || '/api'}
+            onSuccess={() => {
+              setRatingModalOpen(false)
+              setSelectedBookingForRating(null)
+              // Mark as rated in local state
+              setRatedBookings(prev => new Set([...prev, selectedBookingForRating.id]))
+              try {
+                toast.show('Thank you for rating!', 'success')
+              } catch (e) {
+                console.log('Toast not available', e)
+              }
+            }}
+            onClose={() => {
+              setRatingModalOpen(false)
+              setSelectedBookingForRating(null)
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  )}
       </div>
     </div>
   )

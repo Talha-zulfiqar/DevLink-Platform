@@ -14,6 +14,12 @@ const RatingSchema = new mongoose.Schema(
       helpfulness: { type: Number, min: 1, max: 5 }, // How helpful they were
     },
     helpful: { type: Number, default: 0 }, // Number of people who found this review helpful
+    
+    // Admin fields
+    adminReviewNotes: { type: String, default: '', maxlength: 2000 }, // Admin review/notes
+    adminReviewedAt: { type: Date, default: null }, // When admin last reviewed this rating
+    isModifiedByAdmin: { type: Boolean, default: false }, // Flag indicating admin has modified this rating
+    
     createdAt: { type: Date, default: Date.now },
     updatedAt: { type: Date, default: Date.now },
   },
@@ -24,5 +30,6 @@ const RatingSchema = new mongoose.Schema(
 RatingSchema.index({ mentor: 1, createdAt: -1 });
 RatingSchema.index({ reviewer: 1, createdAt: -1 });
 RatingSchema.index({ booking: 1 });
+RatingSchema.index({ adminReviewedAt: 1 }); // For admin review tracking
 
 module.exports = mongoose.model('Rating', RatingSchema);

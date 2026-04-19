@@ -27,6 +27,7 @@ import OrganizationDashboard from './pages/OrganizationDashboard'
 import CheckoutPage from './pages/CheckoutPage'
 import PaymentSuccess from './pages/PaymentSuccess'
 import Settings from './pages/Settings'
+import NotificationsCenter from './pages/NotificationsCenter'
 import ProfilePage from './components/Profile/ProfilePage'
 import VideoCall from './components/Video/VideoCall'
 import VideoCallWithPIPPage from './pages/VideoCallWithPIPPage'
@@ -77,6 +78,7 @@ export default function App() {
                 <Route path="projects/new" element={<ProtectedRoute><CreateProjectPage /></ProtectedRoute>} />
                 <Route path="projects/:id" element={<ProjectDetailPage />} />
                 <Route path="settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+                <Route path="notifications" element={<ProtectedRoute><NotificationsCenter /></ProtectedRoute>} />
                 <Route path="profile/:userId?" element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
                 <Route path="video-legacy/:bookingId" element={<ProtectedRoute><VideoCall /></ProtectedRoute>} />
                 <Route path="video/:bookingId" element={<ProtectedRoute><VideoCallWithPIPPage /></ProtectedRoute>} />

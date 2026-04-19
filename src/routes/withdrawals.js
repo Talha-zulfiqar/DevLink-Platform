@@ -20,32 +20,45 @@ router.post(
   handleValidationErrors,
   async (req, res) => {
     try {
-      const mentorId = req.user._id;
+      const userId = req.user._id;
+      const userRole = req.user.role;
       const { amount, bankDetails } = req.body;
 
-      // Verify user is a mentor
-      if (req.user.role !== 'mentor') {
-        return res.status(403).json({ success: false, message: 'Only mentors can request withdrawals' });
+      // Verify user is a mentor or admin
+      if (userRole !== 'mentor' && userRole !== 'admin') {
+        return res.status(403).json({ success: false, message: 'Only mentors and admins can request withdrawals' });
       }
 
-      // Calculate available balance
-      const payments = await Payment.find({
-        booking: { $exists: true },
-        status: 'succeeded',
-      }).populate('booking');
-
+      // Calculate available balance based on role
       let totalEarnings = 0;
-      for (const payment of payments) {
-        if (payment.booking && payment.booking.mentor && String(payment.booking.mentor) === String(mentorId)) {
-          // Mentor gets 85% of the booking payment
-          totalEarnings += (payment.amount * 0.85);
+      
+      if (userRole === 'mentor') {
+        // Mentors earn 85% of booking payments
+        const payments = await Payment.find({
+          booking: { $exists: true },
+          status: 'succeeded',
+        }).populate('booking');
+
+        for (const payment of payments) {
+          if (payment.booking && payment.booking.mentor && String(payment.booking.mentor) === String(userId)) {
+            totalEarnings += (payment.amount * 0.85);
+          }
         }
+      } else if (userRole === 'admin') {
+        // Admins can withdraw from admin revenue (15% of all payments)
+        const payments = await Payment.find({
+          booking: { $exists: true },
+          status: 'succeeded',
+        });
+        
+        // Admin gets 15% of all payments
+        totalEarnings = payments.reduce((sum, p) => sum + (p.amount * 0.15), 0);
       }
 
-      // Get previous withdrawals
+      // Get previous withdrawals (include pending to prevent over-withdrawals)
       const previousWithdrawals = await Withdrawal.find({
-        mentor: mentorId,
-        status: { $in: ['completed', 'processing'] },
+        mentor: userId,
+        status: { $in: ['pending', 'completed', 'processing'] },
       });
 
       const totalWithdrawn = previousWithdrawals.reduce((sum, w) => sum + w.amount, 0);
@@ -63,7 +76,7 @@ router.post(
 
       // Create withdrawal request
       const withdrawal = new Withdrawal({
-        mentor: mentorId,
+        mentor: userId,
         amount: amountInCents,
         bankDetails,
       });
@@ -86,34 +99,52 @@ router.post(
   }
 );
 
-// GET /api/withdrawals/my - Get mentor's withdrawal history
+// GET /api/withdrawals/my - Get user's withdrawal history
 router.get('/my', protect, async (req, res) => {
   try {
-    const mentorId = req.user._id;
+    const userId = req.user._id;
+    const userRole = req.user.role;
 
-    // Calculate available balance
-    const payments = await Payment.find({
-      booking: { $exists: true },
-      status: 'succeeded',
-    }).populate('booking');
+    // Allow mentors and admins to get their withdrawals
+    if (userRole !== 'mentor' && userRole !== 'admin') {
+      return res.status(403).json({ success: false, message: 'Only mentors and admins can view withdrawals' });
+    }
 
+    // Calculate available balance based on role
     let totalEarnings = 0;
-    for (const payment of payments) {
-      if (payment.booking && payment.booking.mentor && String(payment.booking.mentor) === String(mentorId)) {
-        totalEarnings += (payment.amount * 0.85);
+    
+    if (userRole === 'mentor') {
+      // Mentors earn 85% of booking payments
+      const payments = await Payment.find({
+        booking: { $exists: true },
+        status: 'succeeded',
+      }).populate('booking');
+
+      for (const payment of payments) {
+        if (payment.booking && payment.booking.mentor && String(payment.booking.mentor) === String(userId)) {
+          totalEarnings += (payment.amount * 0.85);
+        }
       }
+    } else if (userRole === 'admin') {
+      // Admins earn 15% of all payments
+      const payments = await Payment.find({
+        booking: { $exists: true },
+        status: 'succeeded',
+      });
+      
+      totalEarnings = payments.reduce((sum, p) => sum + (p.amount * 0.15), 0);
     }
 
     const previousWithdrawals = await Withdrawal.find({
-      mentor: mentorId,
-      status: { $in: ['completed', 'processing'] },
+      mentor: userId,
+      status: { $in: ['pending', 'completed', 'processing'] },
     });
 
     const totalWithdrawn = previousWithdrawals.reduce((sum, w) => sum + w.amount, 0);
     const availableBalance = totalEarnings - totalWithdrawn;
 
-    // Get all withdrawals for this mentor
-    const withdrawals = await Withdrawal.find({ mentor: mentorId }).sort({ createdAt: -1 });
+    // Get all withdrawals for this user
+    const withdrawals = await Withdrawal.find({ mentor: userId }).sort({ createdAt: -1 });
 
     res.json({
       success: true,

@@ -4,6 +4,7 @@ import { SunIcon, MoonIcon } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext'
 import { initSocket } from '../../utils/socket'
 import OrganizationHub from '../Organization/OrganizationHub'
+import NotificationBell from '../UX/NotificationBell'
 
 export default function Header({ mobileOpen, onMobileToggle }: { mobileOpen?: boolean; onMobileToggle?: () => void }) {
   const { user } = useAuth()
@@ -221,6 +222,9 @@ export default function Header({ mobileOpen, onMobileToggle }: { mobileOpen?: bo
             >
               {theme === 'dark' ? <SunIcon size={18} /> : <MoonIcon size={18} />}
             </button>
+
+            {/* Notification Bell */}
+            {user && <NotificationBell />}
 
             {/* Organization Hub: show for individual users only */}
             {user && String(((user as any).userType || '')).toLowerCase() === 'individual' && (

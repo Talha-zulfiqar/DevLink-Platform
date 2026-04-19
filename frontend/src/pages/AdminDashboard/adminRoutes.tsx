@@ -5,6 +5,8 @@ import DashboardHome from './DashboardHome'
 import UsersManagement from './UsersManagement'
 import ApprovalsPage from './ApprovalsPage'
 import RevenueDashboard from './RevenueDashboard'
+import RatingsManagement from './RatingsManagement'
+import WithdrawalsManagement from './WithdrawalsManagement'
 import { ToastProvider } from '../../components/UX/ToastProvider'
 import AdminProtectedRoute from '../../components/Auth/AdminProtectedRoute'
 
@@ -48,6 +50,8 @@ export default function AdminRoutes() {
           <Route path="users" element={<AdminProtectedRoute><UsersManagement /></AdminProtectedRoute>} />
           <Route path="approvals" element={<AdminProtectedRoute><ApprovalsPage /></AdminProtectedRoute>} />
           <Route path="revenue" element={<AdminProtectedRoute><RevenueDashboard /></AdminProtectedRoute>} />
+          <Route path="ratings" element={<AdminProtectedRoute><RatingsManagement /></AdminProtectedRoute>} />
+          <Route path="withdrawals" element={<AdminProtectedRoute><WithdrawalsManagement /></AdminProtectedRoute>} />
           {/* Additional admin routes can be added here */}
         </Routes>
       </ToastProvider>

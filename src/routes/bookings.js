@@ -228,6 +228,37 @@ router.post('/', protect, async (req, res) => {
       console.warn('Failed to notify booking-created via socket:', e && e.message ? e.message : e);
     }
 
+    // Send notifications to mentor and student
+    try {
+      const NotificationService = require('../utils/notificationService');
+      const socketModule = require('../socket');
+      
+      // Notify mentor
+      await NotificationService.create(booking.mentor, {
+        type: 'booking',
+        title: 'New Booking Request',
+        message: `${student.firstName || student.email} wants to book a session with you`,
+        relatedId: booking._id,
+        icon: 'Calendar',
+        actionUrl: `/bookings/${booking._id}`,
+        metadata: { bookingId: booking._id, studentName: student.firstName },
+      });
+
+      // Notify via socket if mentor is online
+      if (socketModule && typeof socketModule.notifyUser === 'function') {
+        await socketModule.notifyUser(booking.mentor, {
+          type: 'booking',
+          title: 'New Booking Request',
+          message: `${student.firstName || student.email} wants to book a session`,
+          relatedId: booking._id,
+          icon: 'Calendar',
+          actionUrl: `/bookings/${booking._id}`,
+        });
+      }
+    } catch (e) {
+      console.warn('Failed to send booking notifications:', e && e.message ? e.message : e);
+    }
+
     // Auto-create welcome message for new booking (send welcome message so conversation appears and participants are notified)
     try {
       await createWelcomeMessage(booking).catch((e) => console.warn('createWelcomeMessage failed in POST:', e && e.message ? e.message : e));

@@ -1010,6 +1010,38 @@ function cancelReminder(bookingId) {
   }
 }
 
+// Notification handlers
+const NotificationService = require('../utils/notificationService');
+
+async function notifyUser(userId, notificationData) {
+  try {
+    // Create notification in DB
+    const notification = await NotificationService.create(userId, notificationData);
+    
+    if (!notification) return;
+
+    // Emit to user via socket if online
+    if (ioInstance && presence.has(String(userId))) {
+      const sockets = presence.get(String(userId));
+      sockets.forEach(socketId => {
+        ioInstance.to(socketId).emit('notification', {
+          _id: notification._id,
+          type: notification.type,
+          title: notification.title,
+          message: notification.message,
+          icon: notification.icon,
+          actionUrl: notification.actionUrl,
+          createdAt: notification.createdAt,
+        });
+      });
+    }
+
+    return notification;
+  } catch (error) {
+    console.error('Error notifying user:', error);
+  }
+}
+
 module.exports = {
   initSocket,
   getIo,
@@ -1018,6 +1050,7 @@ module.exports = {
   notifyBookingUpdated,
   scheduleReminder,
   cancelReminder,
+  notifyUser,
 };
 // also export presence helpers
 module.exports.isUserOnline = isUserOnline;

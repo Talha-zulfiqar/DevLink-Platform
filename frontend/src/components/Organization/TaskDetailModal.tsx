@@ -7,9 +7,10 @@ type Props = {
   onMarkComplete: (taskId: string) => void
   onStatusChange?: (taskId: string, status: string) => void
   onProgressChange?: (taskId: string, progress: number) => void
+  onRemoveTask?: (taskId: string) => void
 }
 
-export default function TaskDetailModal({ task, isOpen, onClose, onMarkComplete, onStatusChange, onProgressChange }: Props) {
+export default function TaskDetailModal({ task, isOpen, onClose, onMarkComplete, onStatusChange, onProgressChange, onRemoveTask }: Props) {
   const [selectedStatus, setSelectedStatus] = useState(task?.status || 'todo')
   const [progress, setProgress] = useState(task?.progress || 0)
   const [saving, setSaving] = useState(false)
@@ -170,9 +171,22 @@ export default function TaskDetailModal({ task, isOpen, onClose, onMarkComplete,
             </div>
           )}
 
-          <div className="flex justify-end gap-3 pt-4 border-t dark:border-gray-700">
-            <button onClick={onClose} className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Cancel</button>
-            <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+          <div className="flex justify-between gap-3 pt-4 border-t dark:border-gray-700">
+            <button
+              onClick={() => {
+                if (onRemoveTask && window.confirm('Are you sure you want to remove this task?')) {
+                  onRemoveTask(task._id)
+                }
+              }}
+              className="px-4 py-2 text-red-600 dark:text-red-400 border border-red-300 dark:border-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition"
+              title="Remove this task"
+            >
+              Remove
+            </button>
+            <div className="flex gap-3">
+              <button onClick={onClose} className="px-4 py-2 text-gray-700 dark:text-gray-300 border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition">Cancel</button>
+              <button onClick={handleSave} disabled={saving} className="px-4 py-2 bg-blue-600 text-white hover:bg-blue-700 rounded-lg transition disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+            </div>
           </div>
         </div>
       </div>

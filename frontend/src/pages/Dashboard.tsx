@@ -5,6 +5,7 @@ import SessionBooking from '../components/SessionBooking'
 import DashboardOnboarding from '../components/UX/DashboardOnboarding'
 import KPICards from '../components/Dashboard/KPICards'
 import ActivityTimeline from '../components/Dashboard/ActivityTimeline'
+import EarningsAndWithdrawals from '../components/Earnings/EarningsAndWithdrawals'
 import { useDashboardData } from '../hooks/useDashboardData'
 import { LineChart as LineChartIcon, AlertCircle, CreditCard, Check, Calendar as CalendarIcon, Clock } from 'lucide-react'
 import {
@@ -690,6 +691,9 @@ export default function Dashboard() {
                 </div>
               )}
             </div>
+
+            {/* Earnings and Withdrawals Section */}
+            <EarningsAndWithdrawals API_BASE={API_BASE} />
             </div>
 
         <aside>

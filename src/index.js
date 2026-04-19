@@ -218,6 +218,8 @@ try { app.use('/api/ratings', require('./routes/ratings')) } catch (e) { console
 try { app.use('/api/withdrawals', require('./routes/withdrawals')) } catch (e) { console.warn('Withdrawals route not available:', e && e.message ? e.message : e) }
 // Notifications (real-time)
 try { app.use('/api/notifications', require('./routes/notifications')) } catch (e) { console.warn('Notifications route not available:', e && e.message ? e.message : e) }
+// AI Chat (Google Gemini)
+try { app.use('/api/ai', require('./routes/ai')) } catch (e) { console.warn('AI route not available:', e && e.message ? e.message : e) }
 
 // Mount admin routes
 app.use('/api/admin', require('./routes/admin'));

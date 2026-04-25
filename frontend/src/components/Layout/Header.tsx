@@ -5,7 +5,6 @@ import { useAuth } from '../../contexts/AuthContext'
 import { initSocket } from '../../utils/socket'
 import OrganizationHub from '../Organization/OrganizationHub'
 import NotificationBell from '../UX/NotificationBell'
-import ChatBox from '../AI/ChatBox'
 
 export default function Header({ mobileOpen, onMobileToggle }: { mobileOpen?: boolean; onMobileToggle?: () => void }) {
   const { user } = useAuth()
@@ -263,7 +262,6 @@ export default function Header({ mobileOpen, onMobileToggle }: { mobileOpen?: bo
           </div>
         </div>
       </div>
-      <ChatBox />
     </header>
   );
 }

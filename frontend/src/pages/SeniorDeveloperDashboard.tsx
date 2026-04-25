@@ -1,6 +1,7 @@
 import React from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { useNavigate } from 'react-router-dom'
+import LlamaChatbot from '../components/AI/LlamaChatbot'
 // InvitationInbox removed; organization notifications are surfaced in the header OrganizationHub
 
 export default function SeniorDeveloperDashboard() {
@@ -37,6 +38,7 @@ export default function SeniorDeveloperDashboard() {
           </div>
         </div>
       </div>
+      <LlamaChatbot />
     </div>
   )
 }

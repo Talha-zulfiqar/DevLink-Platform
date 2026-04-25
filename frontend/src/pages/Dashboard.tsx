@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import SessionBooking from '../components/SessionBooking'
 import DashboardOnboarding from '../components/UX/DashboardOnboarding'
 import KPICards from '../components/Dashboard/KPICards'
+import LlamaChatbot from '../components/AI/LlamaChatbot'
 import ActivityTimeline from '../components/Dashboard/ActivityTimeline'
 import EarningsAndWithdrawals from '../components/Earnings/EarningsAndWithdrawals'
 import { useDashboardData } from '../hooks/useDashboardData'
@@ -779,6 +780,7 @@ export default function Dashboard() {
         }}
       />
     </div>
+    <LlamaChatbot />
     </>
   )
 }

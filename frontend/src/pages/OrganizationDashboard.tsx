@@ -4,6 +4,7 @@ import { useNavigate } from 'react-router-dom'
 import { CreateProjectModal, InviteMemberModal, TaskCreationModal, ResourceAllocationModal } from '../components/OrganizationModals'
 import EditProjectModal from '../components/OrganizationModals/EditProjectModal'
 import OrganizationDashboardMain from '../components/Dashboard/OrganizationDashboardMain'
+import LlamaChatbot from '../components/AI/LlamaChatbot'
 
 type Project = {
   _id: string
@@ -56,34 +57,37 @@ export default function OrganizationDashboard() {
   }, [user, loading, navigate])
 
   return (
-  <div className="py-8 text-gray-900 dark:text-gray-100">
-      <div className="max-w-7xl mx-auto space-y-6">
-        <header className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-semibold">Organization Dashboard</h1>
-            <p className="text-sm text-gray-600 dark:text-gray-300">Manage projects, tasks, resources and your team.</p>
-          </div>
-        </header>
+    <>
+      <div className="py-8 text-gray-900 dark:text-gray-100">
+          <div className="max-w-7xl mx-auto space-y-6">
+            <header className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-semibold">Organization Dashboard</h1>
+                <p className="text-sm text-gray-600 dark:text-gray-300">Manage projects, tasks, resources and your team.</p>
+              </div>
+            </header>
 
-        {/* Organization profile */}
-        <section className="rounded-2xl p-6 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
-          <h2 className="text-lg font-semibold mb-2">Organization Profile</h2>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="col-span-2">
-              <div className="font-medium text-gray-900 dark:text-white">{(user && ((user as any).organizationDetails?.name || (user as any).name)) || 'Your Organization Name'}</div>
-              <div className="text-sm text-gray-500 dark:text-gray-300">{(user && (user as any).organizationDetails?.description) || 'No description provided.'}</div>
-              <div className="mt-2 text-sm text-gray-500 dark:text-gray-300">Website: {(user && (user as any).organizationDetails?.website) || '—'}</div>
-              <div className="mt-1 text-sm text-gray-500 dark:text-gray-300">Contact: {(user && (user as any).organizationDetails?.contactName) || (user && (user as any).organizationDetails?.contactEmail) || '—'}</div>
-            </div>
-            <div className="flex items-center justify-end">
-              <div className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">Organization</div>
-            </div>
-          </div>
-        </section>
+            {/* Organization profile */}
+            <section className="rounded-2xl p-6 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 shadow-sm">
+              <h2 className="text-lg font-semibold mb-2">Organization Profile</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="col-span-2">
+                  <div className="font-medium text-gray-900 dark:text-white">{(user && ((user as any).organizationDetails?.name || (user as any).name)) || 'Your Organization Name'}</div>
+                  <div className="text-sm text-gray-500 dark:text-gray-300">{(user && (user as any).organizationDetails?.description) || 'No description provided.'}</div>
+                  <div className="mt-2 text-sm text-gray-500 dark:text-gray-300">Website: {(user && (user as any).organizationDetails?.website) || '—'}</div>
+                  <div className="mt-1 text-sm text-gray-500 dark:text-gray-300">Contact: {(user && (user as any).organizationDetails?.contactName) || (user && (user as any).organizationDetails?.contactEmail) || '—'}</div>
+                </div>
+                <div className="flex items-center justify-end">
+                  <div className="text-xs px-3 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-200">Organization</div>
+                </div>
+              </div>
+            </section>
 
-  <OrganizationDashboardMain />
-      </div>
-    </div>
+      <OrganizationDashboardMain />
+          </div>
+        </div>
+      <LlamaChatbot />
+    </>
   )
 }
 

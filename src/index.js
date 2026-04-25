@@ -1,4 +1,11 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '..', '.env') });
+console.log('📂 .env loaded from:', path.resolve(__dirname, '..', '.env'));
+console.log('🔑 GEMINI_API_KEY available:', !!process.env.GEMINI_API_KEY);
+console.log('🔑 GROQ_API_KEY available:', !!process.env.GROQ_API_KEY);
+if (process.env.GROQ_API_KEY) {
+  console.log('   Full key:', process.env.GROQ_API_KEY);
+}
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -218,8 +225,6 @@ try { app.use('/api/ratings', require('./routes/ratings')) } catch (e) { console
 try { app.use('/api/withdrawals', require('./routes/withdrawals')) } catch (e) { console.warn('Withdrawals route not available:', e && e.message ? e.message : e) }
 // Notifications (real-time)
 try { app.use('/api/notifications', require('./routes/notifications')) } catch (e) { console.warn('Notifications route not available:', e && e.message ? e.message : e) }
-// AI Chat (Google Gemini)
-try { app.use('/api/ai', require('./routes/ai')) } catch (e) { console.warn('AI route not available:', e && e.message ? e.message : e) }
 
 // Mount admin routes
 app.use('/api/admin', require('./routes/admin'));
@@ -327,7 +332,6 @@ app.get('/api/mentors', mentorsHandler);
 app.get('/api/profiles/mentors', mentorsHandler);
 
 // Serve uploaded files from project-root /uploads at /uploads
-const path = require('path')
 try {
 	const uploadsDir = path.join(process.cwd(), 'uploads')
 	// ensure directory exists

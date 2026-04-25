@@ -5,6 +5,7 @@ import { useAuth } from '../../contexts/AuthContext'
 import { initSocket } from '../../utils/socket'
 import OrganizationHub from '../Organization/OrganizationHub'
 import NotificationBell from '../UX/NotificationBell'
+import Logo from '../Common/Logo'
 
 export default function Header({ mobileOpen, onMobileToggle }: { mobileOpen?: boolean; onMobileToggle?: () => void }) {
   const { user } = useAuth()
@@ -175,22 +176,7 @@ export default function Header({ mobileOpen, onMobileToggle }: { mobileOpen?: bo
         style={{ padding: '0 24px', height: 64 }}
       >
         <div className="flex items-center gap-6">
-          <Link to={user ? "/app/dashboard" : "/"} className="flex items-center gap-3 no-underline group">
-            <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-2xl transition-all duration-300 group-hover:scale-105"
-              style={{
-                background: 'linear-gradient(135deg,#0066FF 0%,#8B5CF6 100%)',
-                boxShadow: '0 8px 24px rgba(11,24,55,0.15)',
-              }}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 12h18" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M7 7h10" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-                <path d="M7 17h10" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" opacity="0.9" />
-              </svg>
-            </div>
-            <span className="text-xl font-bold text-white group-hover:text-blue-100 transition-colors">DevLink</span>
-          </Link>
+          <Logo variant="dark" className="no-underline" />
           <nav className="hidden md:flex items-center gap-1">
             {/* Display-only terminology mapping: "Mentor" -> "Senior Developer", "Junior" -> "Junior Developer" */}
             <TopNavItem to="/app/mentors">Senior Developers</TopNavItem>

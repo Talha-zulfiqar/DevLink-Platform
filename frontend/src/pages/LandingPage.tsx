@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowRight, Users, Code, Video, MessageCircle, Star, CheckCircle, Zap, Shield, Globe, Menu, X, ChevronDown } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import Logo from '../components/Common/Logo';
 
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -23,12 +24,7 @@ export default function LandingPage() {
       <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-gray-200/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                <Code className="w-5 h-5 text-white" />
-              </div>
-              <span className="text-xl font-bold text-gray-900">DevLink</span>
-            </Link>
+            <Logo variant="light" />
             
             <div className="hidden md:flex items-center gap-8">
               <button 
@@ -292,12 +288,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-4 gap-8">
             <div>
-              <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center">
-                  <Code className="w-5 h-5 text-white" />
-                </div>
-                <span className="text-xl font-bold text-white">DevLink</span>
-              </div>
+              <Logo variant="dark" className="mb-4 !text-base" showText={true} />
               <p className="text-sm">Empowering developers to learn, grow, and succeed together.</p>
             </div>
             
